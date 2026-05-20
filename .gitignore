@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Data — don't commit large files
+data/raw/*
+data/processed/*
+data/trajectories/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/trajectories/.gitkeep
+
+# Results — checkpoints and logs are big and reproducible
+results/checkpoints/*
+results/logs/*
+!results/checkpoints/.gitkeep
+!results/logs/.gitkeep
+
+# Keep figures in version control (small, useful for paper)
+# results/figures/ is tracked
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Misc
+*.log
+*.tmp
+wandb/
