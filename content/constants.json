@@ -1,0 +1,35 @@
+{
+  "concepts": [
+    "budgeting",
+    "simple_interest",
+    "income_and_taxes",
+    "emergency_fund",
+    "compound_interest",
+    "credit_score",
+    "net_worth",
+    "apr",
+    "tax_advantaged_accounts",
+    "insurance",
+    "amortization",
+    "debt_payoff",
+    "investment_basics",
+    "tax_filing",
+    "index_funds",
+    "retirement_planning"
+  ],
+  "difficulties": [
+    1,
+    2,
+    3
+  ],
+  "num_concepts": 16,
+  "num_actions": 48,
+  "max_episode_steps": 50,
+  "bkt_defaults": {
+    "p_learn": 0.3,
+    "p_slip": 0.1,
+    "p_guess": 0.2,
+    "p_prior": 0.1
+  },
+  "quiz_position": 4
+}

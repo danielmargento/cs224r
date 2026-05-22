@@ -1,53 +1,77 @@
 # Finance Tutor RL
 
-Offline reinforcement learning for personal finance tutoring. CS 224R final project.
+Offline reinforcement learning for personal finance tutoring. CS 224R final project (Stanford, 2026).
 
-We train tutoring policies that select practice items for a simulated learner, comparing three reward designs:
+We train tutoring policies that select practice items for a simulated learner, comparing how reward design shapes the resulting curriculum. The proposal commits to three reward designs:
 
-1. **Score-based** — held-out quiz accuracy
-2. **Scenario-based** — performance on multi-concept word problems
-3. **Preference-based** — Bradley-Terry model trained on pairwise session comparisons
+1. **Score-based** — expected accuracy on a held-out quiz set
+2. **Scenario-based** — product-aggregated correctness on multi-concept word problems
+3. **Preference-based** — Bradley-Terry model trained on pairwise session comparisons *(implemented; pairwise label collection scheduled for the next milestone)*
 
-Policies are trained with Implicit Q-Learning (IQL) on a fixed offline dataset of ~10,000 teaching trajectories. The simulated learner is a Deep Knowledge Tracing (DKT) LSTM trained on ASSISTments and adapted to a 20-concept personal-finance skill space. A structurally distinct Bayesian Knowledge Tracing (BKT) simulator is held out for transfer evaluation.
+The simulated learner is a Bayesian Knowledge Tracing (BKT) HMM for the current milestone. A Deep Knowledge Tracing (DKT) LSTM trained on ASSISTments is planned for the final report as the in-distribution training simulator; BKT will remain as a structurally distinct transfer evaluator. Policies are trained with **Discrete Implicit Q-Learning (IQL)** implemented from scratch in `src/training/iql_trainer.py`.
 
 ## Repo layout
 
 ```
-content/                   Curriculum: knowledge graph, item bank, scenarios
+content/                    Curriculum: knowledge graph, item bank, scenarios (JSON)
 data/
-  raw/                     ASSISTments and other downloaded data (gitignored)
-  processed/               Cleaned datasets ready for training
-  trajectories/            Offline RL dataset (gitignored)
+  raw/                      ASSISTments and other downloaded data (gitignored)
+  processed/                Cleaned datasets ready for training
+  trajectories/             Offline RL dataset + relabeled rewards + IQL eval rollouts (gitignored)
 src/
-  env/                     Gym-style environment wrapping a simulator
-  simulators/              DKT (training-time) and BKT (eval-time) student models
-  policies/                Rollout policies for trajectory collection
-  rewards/                 Score, scenario, and preference reward functions
-  training/                IQL trainer
-  evaluation/              Eval harness, metrics, qualitative analysis
-  utils/                   Shared helpers
-scripts/                   Top-level entry points (see below)
-configs/                   YAML configs per experiment
+  simulators/               BKT learner; DKT slot reserved for next milestone
+  env/                      Gym-style episode environment
+  policies/                 Three behavioral rollout policies (random, prereq, difficulty-increasing)
+  rewards/                  Score, scenario, and preference reward functions
+  training/                 Discrete IQL trainer (Q + V + π networks)
+  evaluation/               Curriculum-structure metrics
+  utils/                    Shared helpers
+scripts/                    Top-level entry points (see Pipeline below)
+configs/                    YAML configs per experiment (reserved)
 results/
-  checkpoints/             Saved model weights (gitignored)
-  figures/                 Plots and tables
-  logs/                    Training logs (gitignored)
-tests/                     Unit tests
-notebooks/                 Exploratory analysis
+  checkpoints/              Trained IQL policies (gitignored)
+  figures/                  milestone.png and any future plots
+  logs/                     Training logs (gitignored)
+  MILESTONE.md              Milestone-report writeup
+  baseline_rewards.csv      Per-policy reward summary
+  baseline_structure.csv    Per-policy curriculum-structure metrics
+tests/                      Smoke tests
+notebooks/                  Exploratory analysis
 ```
 
 ## Pipeline
 
+End-to-end run, single seed (BKT only):
+
+```bash
+python scripts/content.py                                       # 1. curriculum JSON
+PYTHONPATH=. python scripts/collect_trajectories.py             # 2. 600 trajectories
+PYTHONPATH=. python scripts/relabel_rewards.py                  # 3. apply score & scenario rewards
+PYTHONPATH=. python scripts/train_iql.py --reward score         # 4a. train Discrete IQL on score
+PYTHONPATH=. python scripts/train_iql.py --reward scenario      # 4b. train Discrete IQL on scenario
+PYTHONPATH=. python scripts/evaluate.py                         # 5. reward + structure CSVs
+PYTHONPATH=. python scripts/make_milestone_figure.py            # 6. composite figure
 ```
-1. python scripts/download_assistments.py        # raw -> data/raw/
-2. python scripts/build_content.py               # generate knowledge graph + item bank
-3. python scripts/train_dkt.py                   # train simulator on ASSISTments
-4. python scripts/adapt_dkt_to_finance.py        # remap skill space
-5. python scripts/collect_trajectories.py        # produce ~10k offline trajectories
-6. python scripts/relabel_rewards.py             # apply each reward function
-7. python scripts/train_iql.py --reward score    # train one policy
-8. python scripts/evaluate.py                    # full eval matrix
+
+Reproducible end-to-end runtime: ~1 minute on CPU.
+
+Planned for next milestone (DKT + full evaluation matrix):
+
 ```
+- scripts/download_assistments.py    # ASSISTments -> data/raw/
+- scripts/train_dkt.py               # DKT LSTM simulator
+- scripts/adapt_dkt_to_finance.py    # remap skill space to finance concepts
+- scripts/collect_preferences.py     # pairwise labels for Bradley-Terry training
+- Per-concept BKT heterogeneity, 10k trajectories, 3 seeds per reward (9 IQL policies)
+```
+
+## Smoke tests
+
+```bash
+PYTHONPATH=. pytest tests/ -v
+```
+
+Nine tests cover content shape, BKT clone-isolation, the three reward functions, and a sanity check on score-vs-mastery monotonicity.
 
 ## Setup
 
@@ -58,4 +82,4 @@ pip install -r requirements.txt
 
 ## Team
 
-Stella Wu, Daniel Argento. Stanford CS 224R, 2026.
+Daniel Argento, Stella Wu. Stanford CS 224R, 2026.

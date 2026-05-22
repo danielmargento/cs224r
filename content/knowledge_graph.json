@@ -1,0 +1,137 @@
+{
+  "concepts": [
+    "budgeting",
+    "simple_interest",
+    "income_and_taxes",
+    "emergency_fund",
+    "compound_interest",
+    "credit_score",
+    "net_worth",
+    "apr",
+    "tax_advantaged_accounts",
+    "insurance",
+    "amortization",
+    "debt_payoff",
+    "investment_basics",
+    "tax_filing",
+    "index_funds",
+    "retirement_planning"
+  ],
+  "graph": {
+    "budgeting": {
+      "prerequisites": [],
+      "description": "Creating and managing a personal budget",
+      "domain": "foundational"
+    },
+    "simple_interest": {
+      "prerequisites": [],
+      "description": "Calculating interest on principal only",
+      "domain": "foundational"
+    },
+    "income_and_taxes": {
+      "prerequisites": [],
+      "description": "Understanding income types, tax brackets, and withholding",
+      "domain": "tax"
+    },
+    "emergency_fund": {
+      "prerequisites": [
+        "budgeting"
+      ],
+      "description": "Building a 3-6 month expense reserve",
+      "domain": "foundational"
+    },
+    "compound_interest": {
+      "prerequisites": [
+        "simple_interest"
+      ],
+      "description": "Calculating interest on principal plus accumulated interest",
+      "domain": "foundational"
+    },
+    "credit_score": {
+      "prerequisites": [
+        "budgeting"
+      ],
+      "description": "Understanding credit scores and their determinants",
+      "domain": "credit"
+    },
+    "net_worth": {
+      "prerequisites": [
+        "budgeting",
+        "emergency_fund"
+      ],
+      "description": "Calculating and growing net worth over time",
+      "domain": "foundational"
+    },
+    "apr": {
+      "prerequisites": [
+        "compound_interest"
+      ],
+      "description": "Annual Percentage Rate on loans and credit cards",
+      "domain": "credit"
+    },
+    "tax_advantaged_accounts": {
+      "prerequisites": [
+        "income_and_taxes"
+      ],
+      "description": "401(k), IRA, HSA contribution rules and tax benefits",
+      "domain": "tax"
+    },
+    "insurance": {
+      "prerequisites": [
+        "budgeting",
+        "net_worth"
+      ],
+      "description": "Types of insurance, premiums, deductibles, coverage",
+      "domain": "tax"
+    },
+    "amortization": {
+      "prerequisites": [
+        "apr"
+      ],
+      "description": "How loan payments are split between principal and interest",
+      "domain": "credit"
+    },
+    "debt_payoff": {
+      "prerequisites": [
+        "apr",
+        "credit_score"
+      ],
+      "description": "Avalanche and snowball strategies for paying off debt",
+      "domain": "credit"
+    },
+    "investment_basics": {
+      "prerequisites": [
+        "compound_interest",
+        "net_worth",
+        "emergency_fund"
+      ],
+      "description": "Stocks, bonds, diversification, and risk-return tradeoff",
+      "domain": "investing"
+    },
+    "tax_filing": {
+      "prerequisites": [
+        "income_and_taxes",
+        "tax_advantaged_accounts"
+      ],
+      "description": "Filing taxes, deductions, brackets, refunds",
+      "domain": "tax"
+    },
+    "index_funds": {
+      "prerequisites": [
+        "investment_basics"
+      ],
+      "description": "Passive index fund investing and expense ratios",
+      "domain": "investing"
+    },
+    "retirement_planning": {
+      "prerequisites": [
+        "investment_basics",
+        "tax_advantaged_accounts",
+        "tax_filing"
+      ],
+      "description": "Long-term retirement savings strategy and withdrawal planning",
+      "domain": "investing"
+    }
+  },
+  "num_concepts": 16
+}

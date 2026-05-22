@@ -1,20 +1,28 @@
 """
-scripts/build_content.py
+scripts/content.py
 
 Generates curriculum content for the finance tutoring RL project:
   - Knowledge graph (16 concepts + prerequisite edges)
-  - Item bank (240 questions: 16 concepts x 3 difficulties x 5 questions)
-  - Scenario bank (multi-concept word problems for scenario-based reward)
+  - Item bank: 240 questions partitioned 4 practice + 1 quiz per
+    (concept, difficulty) cell -> 192 practice + 48 quiz items
+  - Scenario bank: 40 multi-concept word problems for scenario-based reward
+
+The practice/quiz split is deterministic: position 4 (0-indexed) in each cell
+is the quiz item; positions 0-3 are practice. This guarantees that:
+  - every (concept, difficulty) is represented in both sets
+  - the tutor's available action space (practice pool) is decoupled from the
+    score-reward evaluation set (quiz pool), so the score reward measures
+    held-out generalization rather than memorized items
 
 Outputs written to content/:
   content/knowledge_graph.json
-  content/item_bank.json
+  content/item_bank.json       (includes practice_items + quiz_items lists)
   content/scenarios.json
   content/constants.json
 
 Usage:
-  python scripts/build_content.py
-  python scripts/build_content.py --output_dir content/
+  python scripts/content.py
+  python scripts/content.py --output_dir content/
 """
 
 import json
@@ -579,6 +587,216 @@ SCENARIOS = [
         "prompt": "Alex, 35, net worth $150,000 (401k $80k, home equity $50k, savings $20k). Earns $90,000/year, saves $15,000/year. On track to retire at 65 needing $60,000/year (Social Security covers $20,000)?",
         "correct_reasoning": "Need $40,000/year from portfolio. 4% rule: need $1,000,000. ~$100k investable growing at 7% + $15k/year contributions for 30 years ~$2.1M. Yes, on track.",
     },
+    {
+        "id": "scenario_011",
+        "concepts_tested": ["simple_interest", "budgeting"],
+        "difficulty": 1,
+        "prompt": "Priya saves $200/month in an account paying 3% simple interest. How much will she have after 2 years from the savings plus interest on the cumulative balance?",
+        "correct_reasoning": "Contributions: $200 x 24 = $4,800. Simple interest approximation on average balance ($2,400) at 3% for 2 years: ~$144. Total ~$4,944.",
+    },
+    {
+        "id": "scenario_012",
+        "concepts_tested": ["compound_interest", "emergency_fund"],
+        "difficulty": 2,
+        "prompt": "Devon needs a $12,000 emergency fund. He deposits $500/month into an HYSA paying 4.5% compounded monthly. About how long until he reaches the target?",
+        "correct_reasoning": "Future value of annuity at 0.375%/month: $12,000 = 500 * [(1.00375^n - 1)/0.00375]. Solve: n ~= 23 months. Interest adds ~$500 over the period.",
+    },
+    {
+        "id": "scenario_013",
+        "concepts_tested": ["income_and_taxes", "budgeting"],
+        "difficulty": 1,
+        "prompt": "Lila earns $58,000 gross. Federal tax ~$5,200, FICA ~$4,440, state ~$2,300. What is her monthly take-home, and using 50/30/20 how much should go to needs?",
+        "correct_reasoning": "Net annual: $58,000 - $11,940 = $46,060. Monthly: ~$3,838. Needs (50%) = ~$1,919.",
+    },
+    {
+        "id": "scenario_014",
+        "concepts_tested": ["credit_score", "debt_payoff"],
+        "difficulty": 2,
+        "prompt": "Marcus has three cards: $4,000 / $5,000 limit, $1,500 / $3,000 limit, $0 / $2,000 limit. Utilization is hurting his score. Which card should he pay down first to improve his score fastest, and what utilization should he target?",
+        "correct_reasoning": "Total utilization: $5,500 / $10,000 = 55%. Card 1 (80%) is the worst individually. Pay it down first to bring utilization below 30% overall ($3,000 outstanding) and below 30% per card.",
+    },
+    {
+        "id": "scenario_015",
+        "concepts_tested": ["apr", "debt_payoff"],
+        "difficulty": 1,
+        "prompt": "Sam has two debts: $2,000 at 18% APR and $5,000 at 6% APR. He has $300/month extra after minimums. Using the avalanche method, which debt does he target first and why?",
+        "correct_reasoning": "Avalanche targets highest APR: pay extra $300 on the 18% debt. Mathematically minimizes total interest because $1 paid on 18% debt saves more interest than $1 on 6% debt.",
+    },
+    {
+        "id": "scenario_016",
+        "concepts_tested": ["tax_advantaged_accounts", "retirement_planning"],
+        "difficulty": 2,
+        "prompt": "Yuki, 30, has $5,000/year to invest beyond her 401(k) match. She expects a higher tax bracket in retirement. Should she use a Roth IRA or a traditional IRA, and what is the approximate value at 65 at 7%?",
+        "correct_reasoning": "Roth IRA preferred (pay 22% now, avoid 24%+ later). $5,000/year x 35 years at 7% future-value-of-annuity ~= $691,000 - all tax-free withdrawals.",
+    },
+    {
+        "id": "scenario_017",
+        "concepts_tested": ["insurance", "emergency_fund"],
+        "difficulty": 1,
+        "prompt": "Ben has a $1,500 health deductible and $800 in savings. He breaks his arm and faces a $1,500 bill. What does this say about his emergency fund, and what is his minimum next savings target?",
+        "correct_reasoning": "He cannot cover the deductible. Minimum emergency fund should cover the largest deductible at minimum ($1,500), ideally 3-6 months of expenses. First savings target: $1,500.",
+    },
+    {
+        "id": "scenario_018",
+        "concepts_tested": ["amortization", "net_worth"],
+        "difficulty": 2,
+        "prompt": "Tara bought a $400,000 home with 20% down ($80,000) on a 30-year mortgage at 6%. After 5 years she has paid down approximately $24,000 of principal and the home has appreciated to $440,000. What is her home-equity contribution to net worth now?",
+        "correct_reasoning": "Mortgage balance: $320,000 - $24,000 = $296,000. Home value: $440,000. Equity: $440,000 - $296,000 = $144,000.",
+    },
+    {
+        "id": "scenario_019",
+        "concepts_tested": ["index_funds", "investment_basics"],
+        "difficulty": 1,
+        "prompt": "Riya is choosing between an S&P 500 index fund (0.04% expense ratio) and an actively managed large-cap fund (0.95% expense ratio). Both target the same asset class. On a $20,000 investment held 20 years at 8% gross return, what is the approximate ending difference?",
+        "correct_reasoning": "Index net 7.96%: ~$93,100. Active net 7.05%: ~$78,000. Difference ~$15,000. Fees compound dramatically.",
+    },
+    {
+        "id": "scenario_020",
+        "concepts_tested": ["tax_filing", "income_and_taxes"],
+        "difficulty": 2,
+        "prompt": "Aiden, single, earned $72,000 with $8,000 in 401(k) contributions. He has $5,000 mortgage interest, $4,000 state taxes, and $1,500 charitable. The standard deduction is $14,600. Itemize or standard? What is his taxable income?",
+        "correct_reasoning": "Itemized total: $10,500 < $14,600 standard. Take standard. Taxable income: $72,000 - $8,000 - $14,600 = $49,400.",
+    },
+    {
+        "id": "scenario_021",
+        "concepts_tested": ["net_worth", "budgeting"],
+        "difficulty": 1,
+        "prompt": "Eliana lists: checking $2,000, savings $8,000, 401(k) $25,000, car $12,000, student loan $18,000, credit card $1,500. What is her net worth, and what one action this month most improves it given $400/month surplus?",
+        "correct_reasoning": "Assets: $47,000. Liabilities: $19,500. Net worth: $27,500. Paying down the $1,500 credit card (likely highest APR) most improves net worth and reduces interest drag.",
+    },
+    {
+        "id": "scenario_022",
+        "concepts_tested": ["retirement_planning", "tax_advantaged_accounts", "compound_interest"],
+        "difficulty": 3,
+        "prompt": "Noah, 25, earns $70,000. Employer matches 100% of 401(k) up to 5%. He contributes 3%. If he raises to 5%, what is the approximate lifetime cost of his previous under-contribution by age 65 (7% return)?",
+        "correct_reasoning": "Annual missed match: 2% x $70,000 = $1,400. Plus his missed 2% contribution: $1,400. Total missed annual savings: $2,800. FV at 7% over 40 years: ~$560,000.",
+    },
+    {
+        "id": "scenario_023",
+        "concepts_tested": ["emergency_fund", "debt_payoff"],
+        "difficulty": 2,
+        "prompt": "Sofia has $0 saved and $6,000 in credit card debt at 22% APR. She has $500/month surplus. What is the recommended split between building emergency fund and paying debt?",
+        "correct_reasoning": "Standard guidance: build a starter emergency fund ($1,000-$1,500) first, then attack the 22% debt aggressively. After debt is gone, build to 3-6 months. Pure math says all $500 to debt, but a tiny buffer prevents re-borrowing on emergencies.",
+    },
+    {
+        "id": "scenario_024",
+        "concepts_tested": ["investment_basics", "insurance"],
+        "difficulty": 2,
+        "prompt": "Carlos, 38, married with two kids, earns $110,000. He has no life insurance but $80,000 in retirement accounts. Should he prioritize buying term life or increasing investment contributions this year?",
+        "correct_reasoning": "Term life first. With dependents and inadequate assets to replace income, the downside of premature death is catastrophic. 20-year term covering 10x income (~$1M) is cheap (~$30-50/month at his age); buy it, then resume investing.",
+    },
+    {
+        "id": "scenario_025",
+        "concepts_tested": ["credit_score", "insurance"],
+        "difficulty": 3,
+        "prompt": "Marlene has a 590 credit score. Auto insurers in her state use credit-based insurance scores. She is quoted $2,400/year. If she raised her score to 720 over 18 months, insurers estimate ~25% lower premiums. What is the 5-year savings, and does this justify aggressive score improvement?",
+        "correct_reasoning": "5-year savings: $2,400 x 0.25 x 5 = $3,000. Combined with loan APR improvements, credit-score lift typically yields several thousand dollars across products. Yes, justified.",
+    },
+    {
+        "id": "scenario_026",
+        "concepts_tested": ["apr", "amortization", "debt_payoff"],
+        "difficulty": 3,
+        "prompt": "Theo has a $250,000 mortgage at 6.5%, 30 years (~$1,580/month). He can pay $200/month extra to principal. Approximate years shaved off and interest saved over the life of the loan?",
+        "correct_reasoning": "Extra $200/month: term reduced by ~6 years (to ~24 years), interest saved ~$70,000-$80,000.",
+    },
+    {
+        "id": "scenario_027",
+        "concepts_tested": ["tax_filing", "tax_advantaged_accounts", "retirement_planning"],
+        "difficulty": 3,
+        "prompt": "Vera, 45, earns $140,000 (24% bracket). She expects retirement income around $60,000/year (12% bracket). She has $7,000 to allocate. Traditional 401(k) deduction now vs Roth IRA conversion next year - which choice gives more after-tax retirement wealth, assuming 7% return for 20 years?",
+        "correct_reasoning": "Traditional: $7,000 grows to ~$27,100, taxed at 12% on withdrawal = ~$23,850. Roth (already-taxed contribution of $7,000 - 24% tax = $5,320 net): grows to ~$20,600 tax-free. Traditional wins because bracket arbitrage (24%->12%) exceeds Roth's pure-growth advantage.",
+    },
+    {
+        "id": "scenario_028",
+        "concepts_tested": ["income_and_taxes", "compound_interest"],
+        "difficulty": 2,
+        "prompt": "Hassan earns $85,000. He gets a $5,000 raise pushing $1,500 into the 24% bracket (rest in 22%). If he invested the full after-tax raise at 7% for 25 years, what is the future value?",
+        "correct_reasoning": "Tax on raise: $1,500 x 24% + $3,500 x 22% = $360 + $770 = $1,130. After-tax: $3,870. FV at 7% over 25 years: ~$21,000.",
+    },
+    {
+        "id": "scenario_029",
+        "concepts_tested": ["simple_interest", "apr", "credit_score"],
+        "difficulty": 2,
+        "prompt": "Devin needs $400 fast. Option A: payday loan, $60 fee for 2 weeks. Option B: credit card cash advance, 25% APR plus a 5% transaction fee. Which is cheaper if repaid in 2 weeks, and what is each option's effective APR?",
+        "correct_reasoning": "Option A: $60 / $400 = 15% in 2 weeks -> APR ~390%. Option B: $20 fee + ~$3.85 interest (25%/26 periods) = ~$23.85. APR equivalent ~155%. Credit card is dramatically cheaper.",
+    },
+    {
+        "id": "scenario_030",
+        "concepts_tested": ["net_worth", "index_funds", "retirement_planning"],
+        "difficulty": 3,
+        "prompt": "Imani, 32, wants to retire at 50 (FIRE) needing $50,000/year. Current investable assets: $120,000. Annual savings: $40,000 into broad index funds. At 7% real return, can she reach her target in 18 years?",
+        "correct_reasoning": "Target via 4% rule: $50,000 x 25 = $1.25M. FV: $120k x 1.07^18 + $40k x [(1.07^18 - 1) / 0.07] = ~$406k + ~$1.36M = ~$1.77M. Yes, comfortably on track.",
+    },
+    {
+        "id": "scenario_031",
+        "concepts_tested": ["budgeting", "debt_payoff", "emergency_fund"],
+        "difficulty": 2,
+        "prompt": "Camila has $300/month surplus, $0 emergency fund, $2,000 credit card debt at 21%, and a 6% student loan of $15,000. List the correct priority sequence and reasoning.",
+        "correct_reasoning": "(1) Build $1,000 mini emergency fund (~3 months). (2) Pay credit card aggressively (21% beats any safe return). (3) Build EF to 3-6 months. (4) Pay 6% student loan above minimum. Avoids re-borrowing while attacking high-rate debt.",
+    },
+    {
+        "id": "scenario_032",
+        "concepts_tested": ["insurance", "retirement_planning"],
+        "difficulty": 2,
+        "prompt": "Reggie, 55, has $400,000 in retirement assets but no long-term care (LTC) insurance. Average LTC costs are $50,000-$100,000/year. Should he self-insure or buy LTC insurance, and what factors decide?",
+        "correct_reasoning": "Self-insurance is risky at his asset level - a 3-year LTC stay could deplete most of his retirement. Hybrid LTC/life policies or stand-alone LTC purchased in mid-50s is typically cost-effective. Decision factors: asset cushion, family history, dependents.",
+    },
+    {
+        "id": "scenario_033",
+        "concepts_tested": ["income_and_taxes", "tax_advantaged_accounts"],
+        "difficulty": 1,
+        "prompt": "Anika earns $60,000 and contributes $6,000 to a traditional 401(k). If her marginal rate is 22%, how much does this save her in current-year federal income tax?",
+        "correct_reasoning": "Tax savings: $6,000 x 22% = $1,320. Her effective contribution after tax savings is only $4,680 out of pocket.",
+    },
+    {
+        "id": "scenario_034",
+        "concepts_tested": ["compound_interest", "retirement_planning"],
+        "difficulty": 2,
+        "prompt": "Twins Mira and Ravi both want $1M by 65. Mira invests $300/month starting at 25. Ravi waits until 35 and invests $600/month. Both earn 7%. Who reaches $1M and how do their totals compare?",
+        "correct_reasoning": "Mira (40 years, $300/mo): FV ~= $786,000. Ravi (30 years, $600/mo): FV ~= $735,000. Mira slightly ahead despite contributing half as much (~$144k vs $216k). Starting early dominates contribution rate.",
+    },
+    {
+        "id": "scenario_035",
+        "concepts_tested": ["credit_score", "amortization", "apr"],
+        "difficulty": 2,
+        "prompt": "Jia is buying a $350,000 home with 20% down. With a 660 score she's offered 7.5% APR. With a 760 score (achievable in 8 months) she's offered 6.5%. Monthly payment difference, and lifetime interest difference on the 30-year loan?",
+        "correct_reasoning": "Loan: $280,000. At 7.5%: ~$1,958/mo, total interest ~$424,000. At 6.5%: ~$1,769/mo, total interest ~$357,000. Monthly savings ~$189; lifetime savings ~$67,000. Delaying to improve score is highly worthwhile.",
+    },
+    {
+        "id": "scenario_036",
+        "concepts_tested": ["investment_basics", "tax_filing"],
+        "difficulty": 3,
+        "prompt": "Dario realized $15,000 in long-term capital gains and $4,000 in short-term capital gains this year, plus $7,000 in long-term capital losses. He's in the 24% federal income bracket and 15% LTCG bracket. What is his net capital gains tax?",
+        "correct_reasoning": "Losses first offset same-type gains: $7,000 LT loss offsets $7,000 of LT gain. Net LT gain: $8,000 at 15% = $1,200. ST gain $4,000 at 24% = $960. Total: $2,160.",
+    },
+    {
+        "id": "scenario_037",
+        "concepts_tested": ["budgeting", "simple_interest"],
+        "difficulty": 1,
+        "prompt": "Kai wants to save $3,000 for a vacation in 18 months. He puts a lump sum in a 4% simple-interest account today. How much must he deposit now to hit the goal, and what is the monthly savings equivalent if he instead saves nothing upfront?",
+        "correct_reasoning": "Lump sum: $3,000 / (1 + 0.04 x 1.5) = ~$2,830. Monthly savings (ignoring interest): $3,000 / 18 = ~$167/month.",
+    },
+    {
+        "id": "scenario_038",
+        "concepts_tested": ["emergency_fund", "insurance", "budgeting"],
+        "difficulty": 3,
+        "prompt": "Leo, 28, has $25,000 saved, $4,000/month expenses, and is debating raising his auto insurance deductible from $500 to $2,000 to save $360/year in premiums. Given his emergency fund, is the deductible increase wise, and what is the break-even period?",
+        "correct_reasoning": "His $25,000 EF easily absorbs the $1,500 deductible delta. Break-even: $1,500 / $360 ~= 4.2 accident-free years. Since most drivers go 5+ years without an at-fault claim, raising the deductible is statistically favorable.",
+    },
+    {
+        "id": "scenario_039",
+        "concepts_tested": ["retirement_planning", "investment_basics", "index_funds"],
+        "difficulty": 3,
+        "prompt": "Olufemi, 60, has $800,000 in a 95% stocks / 5% bonds portfolio. He retires in 5 years and needs $40,000/year (4% rule). Should he rebalance now, and to what allocation, to manage sequence-of-returns risk?",
+        "correct_reasoning": "Yes. 95/5 is too aggressive entering the early-retirement risk zone. A glide toward 60/40 or 70/30 reduces sequence-of-returns risk. Rebalance gradually over the next 5 years to avoid timing risk while shifting to a sustainable retirement allocation.",
+    },
+    {
+        "id": "scenario_040",
+        "concepts_tested": ["debt_payoff", "credit_score", "budgeting"],
+        "difficulty": 2,
+        "prompt": "Esi has $18,000 in credit card debt across 4 cards (average APR 22%). She's offered a personal loan at 11% APR for 5 years to consolidate. Monthly cards minimums total $540; the consolidated loan payment is $391/month. What are the tradeoffs?",
+        "correct_reasoning": "Pros: 11% APR halves interest cost vs 22%; single payment is simpler; freed cash flow ($149/month) accelerates payoff or builds EF. Cons: total interest paid depends on whether she stays disciplined (5-year term vs aggressive payoff); 0% cards become available again and tempt re-borrowing. Best path: consolidate AND throw the $149/month surplus back at the loan to shorten it.",
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -600,6 +818,11 @@ BKT_DEFAULTS = {
 # 5. BUILD AND SAVE
 # ---------------------------------------------------------------------------
 
+# Position within each (concept, difficulty) cell that is held out as the quiz
+# item. With 5 items per cell, position 4 -> 4 practice + 1 quiz per cell.
+QUIZ_POSITION = 4
+
+
 def build_content(output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -608,21 +831,34 @@ def build_content(output_dir: Path) -> None:
     print(f"  Wrote knowledge_graph.json  ({NUM_CONCEPTS} concepts)")
 
     items = []
+    practice_items = []
+    quiz_items = []
     for concept, by_diff in ITEM_BANK.items():
         for difficulty, qs in by_diff.items():
-            for q in qs:
-                items.append({**q, "concept": concept, "difficulty": difficulty})
+            for pos, q in enumerate(qs):
+                set_label = "quiz" if pos == QUIZ_POSITION else "practice"
+                item = {**q, "concept": concept, "difficulty": difficulty, "set": set_label}
+                items.append(item)
+                if set_label == "quiz":
+                    quiz_items.append(item)
+                else:
+                    practice_items.append(item)
 
     item_bank_payload = {
         "actions": [{"index": i, "concept": c, "difficulty": d} for i, (c, d) in enumerate(ACTIONS)],
         "action_index": {f"{c}_{d}": i for i, (c, d) in enumerate(ACTIONS)},
         "items": items,
+        "practice_items": practice_items,
+        "quiz_items": quiz_items,
         "num_items": len(items),
+        "num_practice": len(practice_items),
+        "num_quiz": len(quiz_items),
         "num_actions": NUM_ACTIONS,
+        "quiz_position": QUIZ_POSITION,
     }
     with open(output_dir / "item_bank.json", "w") as f:
         json.dump(item_bank_payload, f, indent=2)
-    print(f"  Wrote item_bank.json        ({len(items)} items, {NUM_ACTIONS} actions)")
+    print(f"  Wrote item_bank.json        ({len(items)} items: {len(practice_items)} practice + {len(quiz_items)} quiz, {NUM_ACTIONS} actions)")
 
     with open(output_dir / "scenarios.json", "w") as f:
         json.dump({"scenarios": SCENARIOS, "num_scenarios": len(SCENARIOS)}, f, indent=2)
@@ -636,6 +872,7 @@ def build_content(output_dir: Path) -> None:
             "num_actions": NUM_ACTIONS,
             "max_episode_steps": MAX_EPISODE_STEPS,
             "bkt_defaults": BKT_DEFAULTS,
+            "quiz_position": QUIZ_POSITION,
         }, f, indent=2)
     print(f"  Wrote constants.json")
 
@@ -651,8 +888,14 @@ def main():
     build_content(output_dir)
 
     total = sum(len(qs) for by_diff in ITEM_BANK.values() for qs in by_diff.values())
-    print(f"\nSanity check: {NUM_CONCEPTS} concepts x 3 difficulties x 5 questions = {total} total questions")
+    n_cells = NUM_CONCEPTS * len(DIFFICULTIES)
+    n_practice = n_cells * 4
+    n_quiz = n_cells
+    print(f"\nSanity check: {NUM_CONCEPTS} concepts x {len(DIFFICULTIES)} difficulties x 5 questions = {total} total questions")
+    print(f"  -> {n_practice} practice + {n_quiz} quiz items (4 practice + 1 quiz per cell)")
+    print(f"  -> {len(SCENARIOS)} multi-concept scenarios")
     assert total == 240, f"Expected 240 questions, got {total}"
+    assert len(SCENARIOS) == 40, f"Expected 40 scenarios, got {len(SCENARIOS)}"
     print("Done.")
 
 
